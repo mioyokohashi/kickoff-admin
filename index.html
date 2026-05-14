@@ -101,9 +101,20 @@ document.getElementById("empInput").addEventListener("keydown", function(e) {
 });
 
 function startCamera() {
+  // デバッグ確認
+  if (!navigator.mediaDevices) {
+    alert("navigator.mediaDevices が使えません。\nHTTPS接続か確認してください。");
+    return;
+  }
+  if (!navigator.mediaDevices.getUserMedia) {
+    alert("getUserMedia が使えません。\nブラウザが対応していない可能性があります。");
+    return;
+  }
+  alert("カメラ起動を試みます...");
   navigator.mediaDevices.getUserMedia({
     video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
   }).then(function(stream) {
+    alert("カメラ取得成功！");
     var video = document.getElementById("video");
     video.srcObject = stream;
     video.play();
