@@ -3,71 +3,224 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>入場管理デバッグ</title>
+<title>入場管理 | SHO-TIME 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=DM+Mono&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 <style>
-body{background:#04080f;color:#fff;font-family:sans-serif;padding:40px 20px;display:flex;flex-direction:column;align-items:center;gap:16px}
-button{width:100%;max-width:320px;padding:16px;font-size:16px;font-weight:700;border:none;border-radius:12px;cursor:pointer}
-.b1{background:#0088ff;color:#fff}
-.b2{background:#00aa44;color:#fff}
-.b3{background:#aa4400;color:#fff}
-#log{width:100%;max-width:320px;background:#111;border:1px solid #333;border-radius:8px;padding:16px;font-family:monospace;font-size:12px;min-height:120px;white-space:pre-wrap;color:#0f0}
-video{width:100%;max-width:320px;border-radius:8px;display:none}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#04080f;color:#fff;font-family:"Noto Sans JP",sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:28px 20px 40px}
+h1{font-size:17px;letter-spacing:.1em;margin-bottom:4px;color:#66ccff}
+.subtitle{font-size:10px;color:rgba(100,160,255,0.45);font-family:"DM Mono",monospace;letter-spacing:.15em;margin-bottom:24px}
+.camera-wrap{width:100%;max-width:360px;margin-bottom:20px}
+.camera-box{width:100%;aspect-ratio:1;background:#000;border-radius:16px;overflow:hidden;border:1px solid rgba(0,140,255,0.25);position:relative}
+video{width:100%;height:100%;object-fit:cover;display:block}
+canvas{display:none}
+.scan-frame{position:absolute;inset:0;pointer-events:none}
+.scan-line{position:absolute;left:10%;right:10%;height:2px;background:linear-gradient(90deg,transparent,#00aaff,transparent);animation:scanMove 2s ease-in-out infinite;top:10%}
+@keyframes scanMove{0%,100%{top:10%}50%{top:85%}}
+.corner{position:absolute;width:24px;height:24px;border-color:#00aaff;border-style:solid;border-width:0}
+.corner.tl{top:8%;left:8%;border-top-width:3px;border-left-width:3px;border-radius:4px 0 0 0}
+.corner.tr{top:8%;right:8%;border-top-width:3px;border-right-width:3px;border-radius:0 4px 0 0}
+.corner.bl{bottom:8%;left:8%;border-bottom-width:3px;border-left-width:3px;border-radius:0 0 0 4px}
+.corner.br{bottom:8%;right:8%;border-bottom-width:3px;border-right-width:3px;border-radius:0 0 4px 0}
+.camera-status{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:11px;color:rgba(255,255,255,0.5);font-family:"DM Mono",monospace}
+.btn-row{display:flex;gap:10px;width:100%;max-width:360px;margin-bottom:20px}
+.btn{flex:1;border:none;border-radius:10px;font-size:13px;font-weight:700;padding:13px 8px;cursor:pointer;transition:opacity .2s}
+.btn-scan{background:linear-gradient(135deg,#0055cc,#0088ff);color:#fff}
+.btn-stop{background:rgba(255,80,80,0.15);color:#ff8080;border:1px solid rgba(255,80,80,0.3)}
+.manual-wrap{width:100%;max-width:360px;background:rgba(0,80,180,0.07);border:1px solid rgba(0,140,255,0.15);border-radius:14px;padding:18px;margin-bottom:20px}
+.manual-label{font-size:8px;letter-spacing:.2em;color:rgba(100,160,255,0.4);text-transform:uppercase;font-family:"DM Mono",monospace;margin-bottom:8px}
+.manual-row{display:flex;gap:8px}
+input{flex:1;background:rgba(255,255,255,0.05);border:1px solid rgba(0,140,255,0.25);border-radius:8px;color:#fff;font-size:18px;font-family:"DM Mono",monospace;padding:10px 14px;text-align:center;outline:none}
+input:focus{border-color:rgba(0,200,255,0.5)}
+.btn-enter{background:rgba(0,140,255,0.2);border:1px solid rgba(0,140,255,0.35);border-radius:8px;color:#66ccff;font-size:13px;font-weight:700;padding:10px 16px;cursor:pointer}
+.result{width:100%;max-width:360px;border-radius:16px;padding:22px 24px;display:none;flex-direction:column;gap:10px}
+.result.ok {background:rgba(0,200,100,0.1);border:1px solid rgba(0,200,100,0.3)}
+.result.dup{background:rgba(255,180,0,0.1);border:1px solid rgba(255,180,0,0.3)}
+.result.ng {background:rgba(220,50,50,0.1);border:1px solid rgba(220,50,50,0.3)}
+.r-icon{font-size:40px;text-align:center}
+.r-name{font-size:24px;font-weight:900;text-align:center;color:#fff}
+.r-msg{font-size:13px;text-align:center;color:rgba(255,255,255,0.65)}
+.r-time{font-size:10px;text-align:center;font-family:"DM Mono",monospace;color:rgba(255,255,255,0.35)}
+.count-bar{width:100%;max-width:360px;text-align:right;font-size:10px;color:rgba(100,160,255,0.35);font-family:"DM Mono",monospace;margin-bottom:6px}
 </style>
 </head>
 <body>
-<h2>デバッグ画面</h2>
-<div id="log">ログ開始待ち...\n</div>
-<button class="b1" id="btn1">① ボタンテスト</button>
-<button class="b2" id="btn2">② mediaDevices確認</button>
-<button class="b3" id="btn3">③ カメラ起動テスト</button>
-<video id="video" playsinline autoplay muted></video>
+
+<h1>&#9889; 入場管理</h1>
+<p class="subtitle">SHO-TIME &middot; 2026 KICK OFF MEETING</p>
+
+<div class="camera-wrap">
+  <div class="camera-box">
+    <video id="video" playsinline autoplay muted></video>
+    <canvas id="canvas"></canvas>
+    <div class="scan-frame" id="scanFrame" style="display:none">
+      <div class="scan-line"></div>
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+    </div>
+    <div class="camera-status" id="camStatus">カメラ停止中</div>
+  </div>
+</div>
+
+<div class="btn-row">
+  <button class="btn btn-scan" id="btnScan">&#128247; QRスキャン開始</button>
+  <button class="btn btn-stop" id="btnStop" style="display:none">&#9632; 停止</button>
+</div>
+
+<div class="manual-wrap">
+  <div class="manual-label">社員番号で手入力</div>
+  <div class="manual-row">
+    <input type="text" id="empInput" placeholder="例：10001" inputmode="numeric">
+    <button class="btn-enter" id="btnEnter">&#8594;</button>
+  </div>
+</div>
+
+<div class="count-bar" id="countBar"></div>
+<div class="result" id="result">
+  <div class="r-icon" id="rIcon"></div>
+  <div class="r-name" id="rName"></div>
+  <div class="r-msg"  id="rMsg"></div>
+  <div class="r-time" id="rTime"></div>
+</div>
 
 <script>
-function log(msg) {
-  var el = document.getElementById("log");
-  el.textContent += msg + "\n";
-}
+// ============================================================
+// ★ GAS WebアプリURL（デプロイ後に発行されるURL）
+// ============================================================
+var API_URL = "https://script.google.com/macros/s/AKfycbx4bguQIA2DrOIdQn4DfUFh0XYFDnZ26ISCswE2443T_8lID21yHoOeTq0Vu63QN42d/exec";
+// ============================================================
 
-log("ページ読み込み完了");
-log("userAgent: " + navigator.userAgent.substring(0, 80));
+var scanning = false;
+var animId = null;
+var lastScanned = "";
+var lastScannedAt = 0;
+var checkinCount = 0;
 
-document.getElementById("btn1").addEventListener("click", function() {
-  log("✓ ボタン1 クリック検知OK");
-  alert("ボタン反応OK！");
+// ボタンのイベント登録（onclickではなくaddEventListenerで）
+document.getElementById("btnScan").addEventListener("click", startCamera);
+document.getElementById("btnStop").addEventListener("click", stopCamera);
+document.getElementById("btnEnter").addEventListener("click", function() {
+  doCheckin(document.getElementById("empInput").value);
+});
+document.getElementById("empInput").addEventListener("keydown", function(e) {
+  if (e.keyCode === 13) doCheckin(this.value);
 });
 
-document.getElementById("btn2").addEventListener("click", function() {
-  log("② mediaDevices確認中...");
-  if (!navigator.mediaDevices) {
-    log("✗ navigator.mediaDevices なし");
-    alert("mediaDevices なし");
-    return;
-  }
-  log("✓ navigator.mediaDevices あり");
-  if (!navigator.mediaDevices.getUserMedia) {
-    log("✗ getUserMedia なし");
-    alert("getUserMedia なし");
-    return;
-  }
-  log("✓ getUserMedia あり");
-  alert("mediaDevices OK!");
-});
-
-document.getElementById("btn3").addEventListener("click", function() {
-  log("③ カメラ起動試行...");
-  navigator.mediaDevices.getUserMedia({ video: true })
+function startCamera() {
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
   .then(function(stream) {
-    log("✓ カメラ取得成功！");
-    var v = document.getElementById("video");
-    v.style.display = "block";
-    v.srcObject = stream;
-    alert("カメラ成功！");
+    var video = document.getElementById("video");
+    video.srcObject = stream;
+    video.play();
+    scanning = true;
+    document.getElementById("scanFrame").style.display = "block";
+    document.getElementById("camStatus").textContent = "QRをかざしてください";
+    document.getElementById("btnScan").style.display = "none";
+    document.getElementById("btnStop").style.display = "block";
+    scanLoop();
   })
   .catch(function(err) {
-    log("✗ エラー: " + err.name + " / " + err.message);
-    alert("エラー: " + err.name + "\n" + err.message);
+    alert("カメラエラー: " + err.name + "\n" + err.message);
   });
-});
+}
+
+function stopCamera() {
+  scanning = false;
+  cancelAnimationFrame(animId);
+  var video = document.getElementById("video");
+  if (video.srcObject) {
+    video.srcObject.getTracks().forEach(function(t) { t.stop(); });
+    video.srcObject = null;
+  }
+  document.getElementById("scanFrame").style.display = "none";
+  document.getElementById("camStatus").textContent = "カメラ停止中";
+  document.getElementById("btnScan").style.display = "block";
+  document.getElementById("btnStop").style.display = "none";
+}
+
+function scanLoop() {
+  if (!scanning) return;
+  var video  = document.getElementById("video");
+  var canvas = document.getElementById("canvas");
+  if (video.readyState === video.HAVE_ENOUGH_DATA) {
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    var ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0);
+    var img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    var code = jsQR(img.data, img.width, img.height, { inversionAttempts: "dontInvert" });
+    if (code) {
+      var now = Date.now();
+      if (code.data !== lastScanned || now - lastScannedAt > 2000) {
+        lastScanned   = code.data;
+        lastScannedAt = now;
+        handleQR(code.data);
+        return;
+      }
+    }
+  }
+  animId = requestAnimationFrame(scanLoop);
+}
+
+function handleQR(raw) {
+  document.getElementById("camStatus").textContent = "読み取り完了！";
+  var id = raw;
+  try {
+    var u = new URL(raw);
+    id = u.searchParams.get("id") || raw;
+  } catch(e) {}
+  doCheckin(id);
+  setTimeout(function() {
+    if (scanning) {
+      document.getElementById("camStatus").textContent = "QRをかざしてください";
+      animId = requestAnimationFrame(scanLoop);
+    }
+  }, 1500);
+}
+
+function doCheckin(rawId) {
+  var id = String(rawId).trim();
+  if (!id) return;
+  document.getElementById("empInput").value = "";
+  document.getElementById("camStatus").textContent = "確認中...";
+  fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({ action: "checkin", id: id })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) { showResult(data, id); })
+  .catch(function() { showResult({ ok: false, message: "通信エラー" }, id); });
+}
+
+function showResult(data, id) {
+  var el = document.getElementById("result");
+  el.style.display = "flex";
+  el.className = "result";
+  if (!data.ok && !data.duplicate) {
+    el.classList.add("ng");
+    document.getElementById("rIcon").textContent = "\u2717";
+    document.getElementById("rName").textContent = "ID: " + id;
+    document.getElementById("rMsg").textContent  = data.message || "該当者なし";
+    document.getElementById("rTime").textContent = "";
+    return;
+  }
+  if (data.duplicate) {
+    el.classList.add("dup");
+    document.getElementById("rIcon").textContent = "\u26a0\ufe0f";
+    document.getElementById("rName").textContent = data.info ? (data.info.sei + " " + data.info.mei) : "ID: " + id;
+    document.getElementById("rMsg").textContent  = "入場済みです";
+    document.getElementById("rTime").textContent = "入場時刻: " + data.time;
+    return;
+  }
+  checkinCount++;
+  el.classList.add("ok");
+  document.getElementById("rIcon").textContent = "\u2713";
+  document.getElementById("rName").textContent = data.info ? (data.info.sei + " " + data.info.mei) : "ID: " + id;
+  document.getElementById("rMsg").textContent  = "入場OK";
+  document.getElementById("rTime").textContent = "入場時刻: " + data.time;
+  document.getElementById("countBar").textContent = "本日の入場数: " + checkinCount + "人";
+}
 </script>
 </body>
 </html>
